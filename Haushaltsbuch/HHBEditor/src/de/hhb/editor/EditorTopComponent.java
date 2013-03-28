@@ -114,7 +114,7 @@ public final class EditorTopComponent extends TopComponent {
                     }));
                     
                     simpleVMD.getActions().addAction(ActionFactory.createForwardKeyEventsAction(simpleVMD, "Key Action"));
-                    
+                   
                     
                     simpleVMD.setNodeName(ab.getDescription());
                     simpleVMD.setCheckClipping(true);
