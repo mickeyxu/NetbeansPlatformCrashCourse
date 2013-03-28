@@ -10,10 +10,15 @@ import java.awt.BorderLayout;
 import java.awt.Point;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.util.List;
 import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
 import org.netbeans.api.settings.ConvertAsProperties;
 import org.netbeans.api.visual.action.AcceptProvider;
 import org.netbeans.api.visual.action.ActionFactory;
@@ -29,6 +34,7 @@ import org.openide.awt.ActionReference;
 import org.openide.awt.StatusDisplayer;
 import org.openide.nodes.Node;
 import org.openide.nodes.NodeTransfer;
+import org.openide.util.Exceptions;
 import org.openide.windows.TopComponent;
 import org.openide.util.NbBundle.Messages;
 
@@ -113,8 +119,20 @@ public final class EditorTopComponent extends TopComponent {
                         }
                     }));
                     
-                    simpleVMD.getActions().addAction(ActionFactory.createForwardKeyEventsAction(simpleVMD, "Key Action"));
+//                    simpleVMD.getActions().addAction(ActionFactory.createForwardKeyEventsAction(simpleVMD, "Key Action"));
+                    InputMap inputMap = new InputMap ();
+                    inputMap.put (KeyStroke.getKeyStroke (KeyEvent.VK_DELETE, 0, false), "Delete Action");
                    
+                    ActionMap actionMap = new ActionMap ();
+                    actionMap.put ("delete action", new AbstractAction(){
+                        
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            System.out.println("action performed");
+                            invisiblePane.removeChild(simpleVMD);
+                        }
+                    });
+                    simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
                     
                     simpleVMD.setNodeName(ab.getDescription());
                     simpleVMD.setCheckClipping(true);
@@ -130,6 +148,18 @@ public final class EditorTopComponent extends TopComponent {
         abScene.addChild(invisiblePane);
         pane.setViewportView(abScene.createView());
         add(pane, BorderLayout.CENTER);
+    }
+    
+    private static class MyAction extends AbstractAction {
+
+        public MyAction () {
+            super ("My Action");
+        }
+
+        @Override
+        public void actionPerformed (ActionEvent e) {
+            JOptionPane.showMessageDialog (null, "My Action has been invoked");
+        }
     }
 
     /**
