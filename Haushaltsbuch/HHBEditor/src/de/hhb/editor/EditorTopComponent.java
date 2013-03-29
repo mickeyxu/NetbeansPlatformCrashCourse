@@ -12,6 +12,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.List;
+import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
@@ -37,6 +38,7 @@ import org.openide.nodes.NodeTransfer;
 import org.openide.util.Exceptions;
 import org.openide.windows.TopComponent;
 import org.openide.util.NbBundle.Messages;
+import org.openide.util.NbPreferences;
 
 /**
  * Top component which displays something.
@@ -50,7 +52,7 @@ import org.openide.util.NbBundle.Messages;
         persistenceType = TopComponent.PERSISTENCE_ALWAYS)
 @TopComponent.Registration(mode = "editor", openAtStartup = true)
 @ActionID(category = "Window", id = "de.hhb.editor.EditorTopComponent")
-@ActionReference(path = "Menu/Window" /*, position = 333 */)
+@ActionReference(path = "Menu/Window/Views" /*, position = 333 */)
 @TopComponent.OpenActionRegistration(
         displayName = "#CTL_EditorAction",
         preferredID = "EditorTopComponent")
@@ -79,6 +81,14 @@ public final class EditorTopComponent extends TopComponent {
             public ConnectorState isAcceptable(Widget widget, Point point, Transferable t) {
                 Node[] nodes = NodeTransfer.nodes(t, NodeTransfer.DND_COPY_OR_MOVE);
                 for (Node node : nodes) {
+                    boolean selected =  NbPreferences.forModule(AccountBook.class).getBoolean("dragEnabler", true);
+                    
+//                    StatusDisplayer.getDefault().setStatusText("selected? " + Boolean.toString(selected));
+                    if (!selected){
+                        JOptionPane.showMessageDialog(null, "Drag not Enabled!");
+                        return ConnectorState.REJECT;
+                    }
+                    
                     if (node.getLookup().lookup(AccountBook.class) == null) {
                         return ConnectorState.REJECT;
                     }
@@ -110,22 +120,21 @@ public final class EditorTopComponent extends TopComponent {
                             jpm.add(new AbstractAction("Delete Widget") {
                                 @Override
                                 public void actionPerformed(ActionEvent ae) {
-                                   invisiblePane.removeChild(simpleVMD);
+                                    invisiblePane.removeChild(simpleVMD);
                                     StatusDisplayer.getDefault().setStatusText(ab.getDescription() + " Deleted!");
                                 }
                             });
-                            
+
                             return jpm;
                         }
                     }));
-                    
+
 //                    simpleVMD.getActions().addAction(ActionFactory.createForwardKeyEventsAction(simpleVMD, "Key Action"));
-                    InputMap inputMap = new InputMap ();
-                    inputMap.put (KeyStroke.getKeyStroke (KeyEvent.VK_DELETE, 0, false), "Delete Action");
-                   
-                    ActionMap actionMap = new ActionMap ();
-                    actionMap.put ("delete action", new AbstractAction(){
-                        
+                    InputMap inputMap = new InputMap();
+                    inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0, false), "Delete Action");
+
+                    ActionMap actionMap = new ActionMap();
+                    actionMap.put("delete action", new AbstractAction() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
                             System.out.println("action performed");
@@ -133,7 +142,7 @@ public final class EditorTopComponent extends TopComponent {
                         }
                     });
                     simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
-                    
+
                     simpleVMD.setNodeName(ab.getDescription());
                     simpleVMD.setCheckClipping(true);
 
@@ -149,16 +158,16 @@ public final class EditorTopComponent extends TopComponent {
         pane.setViewportView(abScene.createView());
         add(pane, BorderLayout.CENTER);
     }
-    
+
     private static class MyAction extends AbstractAction {
 
-        public MyAction () {
-            super ("My Action");
+        public MyAction() {
+            super("My Action");
         }
 
         @Override
-        public void actionPerformed (ActionEvent e) {
-            JOptionPane.showMessageDialog (null, "My Action has been invoked");
+        public void actionPerformed(ActionEvent e) {
+            JOptionPane.showMessageDialog(null, "My Action has been invoked");
         }
     }
 

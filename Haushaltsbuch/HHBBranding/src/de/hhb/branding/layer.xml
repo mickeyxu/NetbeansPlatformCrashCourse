@@ -6,12 +6,10 @@
         <folder name="GoTo">
             <file name="org-netbeans-core-windows-actions-RecentViewListAction.shadow_hidden"/>
         </folder>
-        <folder name="Help">
-            <file name="master-help.xml_hidden"/>
-        </folder>
         <file name="View_hidden"/>
         <folder name="Window">
             <file name="ProgressListAction.shadow_hidden"/>
+            <file name="SwitchToRecentDocumentAction.shadow_hidden"/>
         </folder>
     </folder>
 </filesystem>
