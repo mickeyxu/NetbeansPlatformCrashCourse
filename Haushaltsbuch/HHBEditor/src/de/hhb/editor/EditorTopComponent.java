@@ -105,7 +105,8 @@ public final class EditorTopComponent extends TopComponent {
 
                     final AccountBook ab = node.getLookup().lookup(AccountBook.class);
                     final VMDNodeWidget simpleVMD = new VMDNodeWidget(abScene);
-
+                    
+                            
                     List<Payment> payments = ab.getPayment();
                     for (Payment payment : payments) {
                         VMDPinWidget vmdpw = new VMDPinWidget(abScene);
@@ -143,15 +144,35 @@ public final class EditorTopComponent extends TopComponent {
 //                        }
 //                    });
 //                    simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
-
+                    
                     simpleVMD.setNodeName(ab.getDescription());
                     simpleVMD.setCheckClipping(true);
 
                     simpleVMD.setPreferredLocation(point);
                     simpleVMD.getActions().addAction(ActionFactory.createMoveAction());
                     
-//                    invisiblePane.addChild(simpleVMD);
-                    invisiblePane.addChild(new AccountBookWidget(abScene, ab, point));
+                    simpleVMD.getActions().addAction(new KeyboardMoveAction());
+
+                    simpleVMD.getActions().addAction(ActionFactory.createSelectAction(new SelectProvider() {
+                        @Override
+                        public boolean isAimingAllowed(Widget widget, Point localLocation, boolean invertSelection) {
+                            return true;
+                        }
+
+                        @Override
+                        public boolean isSelectionAllowed(Widget widget, Point localLocation, boolean invertSelection) {
+                            return true;
+                        }
+
+                        @Override
+                        public void select(Widget widget, Point localLocation, boolean invertSelection) {
+                            abScene.setFocusedWidget(widget);
+                        }
+                    }));
+                    
+                    
+                    invisiblePane.addChild(simpleVMD);
+//                    invisiblePane.addChild(new AccountBookWidget(abScene, ab, point));
                 }
             }
         }));
@@ -162,19 +183,39 @@ public final class EditorTopComponent extends TopComponent {
         pane.setViewportView(abScene.createView());
         add(pane, BorderLayout.CENTER);
     }
-
-    private static class MyAction extends AbstractAction {
-
-        public MyAction() {
-            super("My Action");
+    
+    private final class KeyboardMoveAction extends WidgetAction.Adapter {
+        private MoveProvider provider;
+        private KeyboardMoveAction() {
+            this.provider = ActionFactory.createDefaultMoveProvider();
         }
-
         @Override
-        public void actionPerformed(ActionEvent e) {
-            JOptionPane.showMessageDialog(null, "My Action has been invoked");
+        public WidgetAction.State keyPressed(Widget widget, WidgetAction.WidgetKeyEvent event) {
+            Point originalSceneLocation = provider.getOriginalLocation(widget);
+            int newY = originalSceneLocation.y;
+            int newX = originalSceneLocation.x;
+            if (event.getKeyCode() == KeyEvent.VK_UP) {
+                newY = newY - 20;
+            } else if (event.getKeyCode() == KeyEvent.VK_DOWN) {
+                newY = newY + 20;
+            } else if (event.getKeyCode() == KeyEvent.VK_RIGHT) {
+                newX = newX + 20;
+            } else if (event.getKeyCode() == KeyEvent.VK_LEFT) {
+                newX = newX - 20;
+            } else if (event.getKeyCode() == KeyEvent.VK_DELETE){
+                widget.removeFromParent();
+                StatusDisplayer.getDefault().setStatusText(widget.toString() + " Deleted!!! ");
+            }
+            provider.movementStarted(widget);
+            provider.setNewLocation(widget, new Point(newX, newY));
+            return WidgetAction.State.CONSUMED;
+        }
+        @Override
+        public WidgetAction.State keyReleased(Widget widget, WidgetAction.WidgetKeyEvent event) {
+            provider.movementFinished(widget);
+            return WidgetAction.State.REJECTED;
         }
     }
-
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
