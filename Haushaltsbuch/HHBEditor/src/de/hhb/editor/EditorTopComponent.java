@@ -12,21 +12,21 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.List;
-import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.KeyStroke;
 import org.netbeans.api.settings.ConvertAsProperties;
 import org.netbeans.api.visual.action.AcceptProvider;
 import org.netbeans.api.visual.action.ActionFactory;
 import org.netbeans.api.visual.action.ConnectorState;
+import org.netbeans.api.visual.action.MoveProvider;
 import org.netbeans.api.visual.action.PopupMenuProvider;
+import org.netbeans.api.visual.action.SelectProvider;
+import org.netbeans.api.visual.action.WidgetAction;
 import org.netbeans.api.visual.vmd.VMDNodeWidget;
 import org.netbeans.api.visual.vmd.VMDPinWidget;
+import org.netbeans.api.visual.widget.EventProcessingType;
 import org.netbeans.api.visual.widget.LayerWidget;
 import org.netbeans.api.visual.widget.Scene;
 import org.netbeans.api.visual.widget.Widget;
@@ -35,7 +35,6 @@ import org.openide.awt.ActionReference;
 import org.openide.awt.StatusDisplayer;
 import org.openide.nodes.Node;
 import org.openide.nodes.NodeTransfer;
-import org.openide.util.Exceptions;
 import org.openide.windows.TopComponent;
 import org.openide.util.NbBundle.Messages;
 import org.openide.util.NbPreferences;
@@ -63,6 +62,8 @@ import org.openide.util.NbPreferences;
 })
 public final class EditorTopComponent extends TopComponent {
 
+    Scene abScene = new Scene();
+    
     public EditorTopComponent() {
         initComponents();
         setName(Bundle.CTL_EditorTopComponent());
@@ -71,7 +72,7 @@ public final class EditorTopComponent extends TopComponent {
         setLayout(new BorderLayout());
 
         JScrollPane pane = new JScrollPane();
-        final Scene abScene = new Scene();
+        
         final LayerWidget invisiblePane = new LayerWidget(abScene);
 
 
@@ -130,29 +131,32 @@ public final class EditorTopComponent extends TopComponent {
                     }));
 
 //                    simpleVMD.getActions().addAction(ActionFactory.createForwardKeyEventsAction(simpleVMD, "Key Action"));
-                    InputMap inputMap = new InputMap();
-                    inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0, false), "Delete Action");
-
-                    ActionMap actionMap = new ActionMap();
-                    actionMap.put("delete action", new AbstractAction() {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                            System.out.println("action performed");
-                            invisiblePane.removeChild(simpleVMD);
-                        }
-                    });
-                    simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
+//                    InputMap inputMap = new InputMap();
+//                    inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0, false), "Delete Action");
+//
+//                    ActionMap actionMap = new ActionMap();
+//                    actionMap.put("delete action", new AbstractAction() {
+//                        @Override
+//                        public void actionPerformed(ActionEvent e) {
+//                            System.out.println("action performed");
+//                            invisiblePane.removeChild(simpleVMD);
+//                        }
+//                    });
+//                    simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
 
                     simpleVMD.setNodeName(ab.getDescription());
                     simpleVMD.setCheckClipping(true);
 
                     simpleVMD.setPreferredLocation(point);
                     simpleVMD.getActions().addAction(ActionFactory.createMoveAction());
-                    invisiblePane.addChild(simpleVMD);
+                    
+//                    invisiblePane.addChild(simpleVMD);
+                    invisiblePane.addChild(new AccountBookWidget(abScene, ab, point));
                 }
             }
         }));
-
+        
+        abScene.setKeyEventProcessingType(EventProcessingType.FOCUSED_WIDGET_AND_ITS_CHILDREN);
 
         abScene.addChild(invisiblePane);
         pane.setViewportView(abScene.createView());
@@ -201,6 +205,11 @@ public final class EditorTopComponent extends TopComponent {
     @Override
     public void componentClosed() {
         // TODO add custom code on component closing
+    }
+    
+    @Override
+    public void componentActivated() {
+        abScene.getView().requestFocusInWindow();
     }
 
     void writeProperties(java.util.Properties p) {
