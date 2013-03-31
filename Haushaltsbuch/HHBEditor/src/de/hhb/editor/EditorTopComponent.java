@@ -19,13 +19,17 @@ import javax.swing.JScrollPane;
 import org.netbeans.api.settings.ConvertAsProperties;
 import org.netbeans.api.visual.action.AcceptProvider;
 import org.netbeans.api.visual.action.ActionFactory;
+import org.netbeans.api.visual.action.ConnectProvider;
 import org.netbeans.api.visual.action.ConnectorState;
 import org.netbeans.api.visual.action.MoveProvider;
 import org.netbeans.api.visual.action.PopupMenuProvider;
 import org.netbeans.api.visual.action.SelectProvider;
 import org.netbeans.api.visual.action.WidgetAction;
+import org.netbeans.api.visual.anchor.AnchorFactory;
+import org.netbeans.api.visual.anchor.AnchorShape;
 import org.netbeans.api.visual.vmd.VMDNodeWidget;
 import org.netbeans.api.visual.vmd.VMDPinWidget;
+import org.netbeans.api.visual.widget.ConnectionWidget;
 import org.netbeans.api.visual.widget.EventProcessingType;
 import org.netbeans.api.visual.widget.LayerWidget;
 import org.netbeans.api.visual.widget.Scene;
@@ -62,8 +66,10 @@ import org.openide.util.NbPreferences;
 })
 public final class EditorTopComponent extends TopComponent {
 
-    Scene abScene = new Scene();
-    
+    Scene abScene;
+    LayerWidget invisiblePane;
+    LayerWidget connectionLayerWidget;
+
     public EditorTopComponent() {
         initComponents();
         setName(Bundle.CTL_EditorTopComponent());
@@ -72,8 +78,10 @@ public final class EditorTopComponent extends TopComponent {
         setLayout(new BorderLayout());
 
         JScrollPane pane = new JScrollPane();
-        
-        final LayerWidget invisiblePane = new LayerWidget(abScene);
+
+        abScene = new Scene();
+        invisiblePane = new LayerWidget(abScene);
+        connectionLayerWidget = new LayerWidget(abScene);
 
 
         abScene.getActions().addAction(ActionFactory.createZoomAction());
@@ -82,14 +90,14 @@ public final class EditorTopComponent extends TopComponent {
             public ConnectorState isAcceptable(Widget widget, Point point, Transferable t) {
                 Node[] nodes = NodeTransfer.nodes(t, NodeTransfer.DND_COPY_OR_MOVE);
                 for (Node node : nodes) {
-                    boolean selected =  NbPreferences.forModule(AccountBook.class).getBoolean("dragEnabler", true);
-                    
+                    boolean selected = NbPreferences.forModule(AccountBook.class).getBoolean("dragEnabler", true);
+
 //                    StatusDisplayer.getDefault().setStatusText("selected? " + Boolean.toString(selected));
-                    if (!selected){
+                    if (!selected) {
                         JOptionPane.showMessageDialog(null, "Drag not Enabled!");
                         return ConnectorState.REJECT;
                     }
-                    
+
                     if (node.getLookup().lookup(AccountBook.class) == null) {
                         return ConnectorState.REJECT;
                     }
@@ -105,14 +113,19 @@ public final class EditorTopComponent extends TopComponent {
 
                     final AccountBook ab = node.getLookup().lookup(AccountBook.class);
                     final VMDNodeWidget simpleVMD = new VMDNodeWidget(abScene);
-                    
-                            
+
+
                     List<Payment> payments = ab.getPayment();
                     for (Payment payment : payments) {
                         VMDPinWidget vmdpw = new VMDPinWidget(abScene);
                         vmdpw.setPinName(payment.getBankName());
                         simpleVMD.addChild(vmdpw);
                     }
+                    
+                    simpleVMD.setNodeName(ab.getDescription());
+                    simpleVMD.setCheckClipping(true);
+
+                    simpleVMD.setPreferredLocation(point);
 
                     // popup menu action on the dropped node;
                     simpleVMD.getActions().addAction(ActionFactory.createPopupMenuAction(new PopupMenuProvider() {
@@ -144,13 +157,10 @@ public final class EditorTopComponent extends TopComponent {
 //                        }
 //                    });
 //                    simpleVMD.getActions().addAction(ActionFactory.createActionMapAction(inputMap, actionMap));
-                    
-                    simpleVMD.setNodeName(ab.getDescription());
-                    simpleVMD.setCheckClipping(true);
 
-                    simpleVMD.setPreferredLocation(point);
-                    simpleVMD.getActions().addAction(ActionFactory.createMoveAction());
                     
+                    simpleVMD.getActions().addAction(ActionFactory.createMoveAction());
+
                     simpleVMD.getActions().addAction(new KeyboardMoveAction());
 
                     simpleVMD.getActions().addAction(ActionFactory.createSelectAction(new SelectProvider() {
@@ -169,26 +179,33 @@ public final class EditorTopComponent extends TopComponent {
                             abScene.setFocusedWidget(widget);
                         }
                     }));
-                    
-                    
+
+                    simpleVMD.getActions().addAction(ActionFactory.createExtendedConnectAction(connectionLayerWidget, new WidgetConnectProvider()));
+
+
                     invisiblePane.addChild(simpleVMD);
 //                    invisiblePane.addChild(new AccountBookWidget(abScene, ab, point));
                 }
             }
         }));
-        
+
         abScene.setKeyEventProcessingType(EventProcessingType.FOCUSED_WIDGET_AND_ITS_CHILDREN);
 
         abScene.addChild(invisiblePane);
+        abScene.addChild(connectionLayerWidget);  
+        
         pane.setViewportView(abScene.createView());
         add(pane, BorderLayout.CENTER);
     }
-    
+
     private final class KeyboardMoveAction extends WidgetAction.Adapter {
+
         private MoveProvider provider;
+
         private KeyboardMoveAction() {
             this.provider = ActionFactory.createDefaultMoveProvider();
         }
+
         @Override
         public WidgetAction.State keyPressed(Widget widget, WidgetAction.WidgetKeyEvent event) {
             Point originalSceneLocation = provider.getOriginalLocation(widget);
@@ -202,7 +219,7 @@ public final class EditorTopComponent extends TopComponent {
                 newX = newX + 20;
             } else if (event.getKeyCode() == KeyEvent.VK_LEFT) {
                 newX = newX - 20;
-            } else if (event.getKeyCode() == KeyEvent.VK_DELETE){
+            } else if (event.getKeyCode() == KeyEvent.VK_DELETE) {
                 widget.removeFromParent();
                 StatusDisplayer.getDefault().setStatusText(widget.toString() + " Deleted!!! ");
             }
@@ -210,12 +227,48 @@ public final class EditorTopComponent extends TopComponent {
             provider.setNewLocation(widget, new Point(newX, newY));
             return WidgetAction.State.CONSUMED;
         }
+
         @Override
         public WidgetAction.State keyReleased(Widget widget, WidgetAction.WidgetKeyEvent event) {
             provider.movementFinished(widget);
             return WidgetAction.State.REJECTED;
         }
     }
+
+    private class WidgetConnectProvider implements ConnectProvider {
+
+        @Override
+        public boolean isSourceWidget(Widget source) {
+            System.out.println("1");
+            return source instanceof VMDNodeWidget ? true : false;
+        }
+
+        @Override
+        public ConnectorState isTargetWidget(Widget src, Widget trg) {
+            return src != trg && trg instanceof VMDNodeWidget
+                    ? ConnectorState.ACCEPT : ConnectorState.REJECT;
+        }
+
+        @Override
+        public boolean hasCustomTargetWidgetResolver(Scene arg0) {
+            return false;
+        }
+
+        @Override
+        public Widget resolveTargetWidget(Scene arg0, Point arg1) {
+            return null;
+        }
+
+        @Override
+        public void createConnection(Widget source, Widget target) {
+            ConnectionWidget conn = new ConnectionWidget(abScene);
+            conn.setTargetAnchorShape(AnchorShape.TRIANGLE_FILLED);
+            conn.setTargetAnchor(AnchorFactory.createRectangularAnchor(target));
+            conn.setSourceAnchor(AnchorFactory.createRectangularAnchor(source));
+            connectionLayerWidget.addChild(conn);
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -247,7 +300,7 @@ public final class EditorTopComponent extends TopComponent {
     public void componentClosed() {
         // TODO add custom code on component closing
     }
-    
+
     @Override
     public void componentActivated() {
         abScene.getView().requestFocusInWindow();
